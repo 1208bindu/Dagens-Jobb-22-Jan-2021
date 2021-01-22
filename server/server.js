@@ -53,7 +53,7 @@ app.post('/addProduct',async (req, res, next) => {
 
 
 //End Point to list products based on category & price range between maximum Price & minimum Price  
-app.get('/searchProducts/:category/price-:pMax-:pMin/:pages?', function (req, res) {
+app.get('/searchProducts/:category/price-between-:pMax-and-:pMin/:pages?', function (req, res) {
   const pSize = 24;
   const pNum = (typeof req.params.pages === 'undefined')?req.params.pages:0;
   const startPoint = pSize*pNum;
