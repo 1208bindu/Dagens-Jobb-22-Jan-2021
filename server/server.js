@@ -4,7 +4,8 @@ const bodyParser = require('body-parser');
 const app = express();
 const cors = require('cors')
 const products = require('./db');
-const fs =require('fs')
+const fs =require('fs');
+const { sort } = require('./db');
 app.use(cors())
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
@@ -54,9 +55,13 @@ app.post('/addProduct',async (req, res, next) => {
 //End Point to list products based on category & price range between maximum Price & minimum Price  
 app.get('/searchProducts/:category/price-between-:Max-and-:Min/:pages?', function (req, res) {
   const pSize = 24;
-  const pNum = (typeof req.params.pages === 'undefined')?req.params.pages:0;
-  const startPoint = pSize*pNum;
+  
+  const pNum = (typeof req.params.pages !== 'undefined')?req.params.pages:1;
+ console.log(pNum)
+  const startPoint = pSize*(pNum-1);
   const endPoint = startPoint+pSize;
+
+  console.log(startPoint+" and "+ endPoint)
 
   const category = req.params.category;
 
@@ -65,7 +70,7 @@ app.get('/searchProducts/:category/price-between-:Max-and-:Min/:pages?', functio
   const pMin = req.params.Min;
 
   const productsFiltered = products.filter(prod =>
-    prod.category == category && parseInt(prod.price) < pMax && parseInt(prod.price) > pMin).slice(startPoint, endPoint);
+    prod.category == category && parseInt(prod.price) < pMax && parseInt(prod.price) > pMin).slice(startPoint, endPoint-1);
 
   res.send(productsFiltered);
 });
@@ -75,49 +80,46 @@ app.get('/searchProducts/:category/price-between-:Max-and-:Min/:pages?', functio
 
 //End point to get Product in the category & price range similar to the one mentioned in search id 
 app.get('/similarProducts/:id', function (req, res) {
-  const nearestNumber = 10;
-  const t=[]
+  const nearestNumber = 11;
+
   const id = req.params.id;
   const Product = products.filter(p => p.id === id)[0];   //search product based on its id
+  console.log(Product)
   const sortProducts = products
-    .filter(prod => prod.category == Product.category && prod.id !== Product.id)
+    .filter(prod => prod.category == Product.category)
     .sort((a, b) => a.price- b.price);                  //Sort similar products based on category
   
+    console.log(sortProducts)
+
     //To find maximum number of products that are to be displayed 
   const numberOfProducts = (nearestNumber < sortProducts.length) ? nearestNumber : sortProducts.length;
+ console.log("total products= "+numberOfProducts)  
+
+ function findByKey(key, value) {
+  return (item, i) => item[key] === value
+}
+
+let findParams = findByKey('id', Product.id)
   
+    let index =sortProducts.findIndex(findParams)
 
-  //Finding closest similar product in the price range
-  const similar = function(price, prod) {
-    let currentProduct = prod[0];
+    console.log(index)
+
+    const startIndex=index-Math.ceil(numberOfProducts/2)
+    const endIndex =index+Math.floor(numberOfProducts/2)
+
+    console.log(startIndex +" and "+ endIndex)
+
+     let similarProducts = [];
+
+    for(var i=startIndex;i<=endIndex;i++)
+    {
+        if(i==index)
+        continue;
+        similarProducts.push(sortProducts[i])
+    }
+
    
-    let diff = Math.abs(price - currentProduct.price);
-    let index = prod.length;
-    while(index--) {
-      const nDiff = Math.abs(price - prod[index].price);
-      if(nDiff < diff) {
-        diff = nDiff;
-        currentProduct = prod[index];
-       }
-    }
-    return currentProduct;
-  };
-
-
-  //Adding the similar products in an array for displaying at end point
-  const addSimilarProducts = function(filtered, number) {
-    let displayProd = [];
-    let prod = filtered;
-    while (displayProd.length < number) {
-      let item = similar(Product.price, prod);
-      prod.splice(item['prod'], 1);
-      delete item['prod'];
-      displayProd.push(item);
-    }
-    return displayProd;
-  }
-
-  const similarProducts = addSimilarProducts(sortProducts, numberOfProducts);
   res.send(similarProducts);
 });
 
